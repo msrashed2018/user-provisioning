@@ -6,6 +6,8 @@ import java.util.List;
 import javax.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.Resource;
+import org.springframework.hateoas.mvc.ControllerLinkBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,31 +29,52 @@ public class UserController {
 	
 	
 	@GetMapping(path = "/user/{id}")
-	public User  getUserById(@PathVariable long id) {
+	public Resource<User>  getUserById(@PathVariable long id) {
 		User user =  service.getUserById(id);
 		if (user == null)
 			throw new UserNotFoundException("id-" + id); 
-		return user;
+		
+		Resource<User> resource = new Resource<User>(user);
+		addLinkToAllUsers(resource);
+		return resource;
 	}
 	
+	
+
 	@GetMapping(path = "/users")
 	public List<User> getUsers() {
 		return service.getUsers();
 	}
 	
 	@PostMapping(path = "/users")
-	public ResponseEntity<Object> createUser(@Valid @RequestBody User user) {
+	public Resource<User> createUser(@Valid @RequestBody User user) {
 		User createdUser = service.createUser(user);
-		URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(createdUser.getId()).toUri();
-		return ResponseEntity.created(location).build();
+		
+		Resource<User> resource = new Resource<User>(createdUser);
+		addLinkToUser(resource, createdUser.getId());
+		addLinkToAllUsers(resource);
+		return resource;
 	}
 	
 	@DeleteMapping(path = "/users/{id}")
-	public User deleteUserById(@PathVariable long id) {
+	public Resource<User> deleteUserById(@PathVariable long id) {
 		User user = service.deleteUserById(id);
 		if(user == null)
 			throw new UserNotFoundException("id-" + id);
-		return user;
+		
+		Resource<User> resource = new Resource<User>(user);
+		addLinkToAllUsers(resource);
+		return resource;
+	}
+	
+	private void addLinkToAllUsers(Resource<User> resource) {
+		ControllerLinkBuilder linkToAllUsers = ControllerLinkBuilder.linkTo(ControllerLinkBuilder.methodOn(this.getClass()).getUsers());
+		resource.add(linkToAllUsers.withRel("all-users"));		
+	}
+	
+	private void addLinkToUser(Resource<User> resource,long id) {
+		ControllerLinkBuilder linkToAllUsers = ControllerLinkBuilder.linkTo(ControllerLinkBuilder.methodOn(this.getClass()).getUserById(id));
+		resource.add(linkToAllUsers.withRel("user-id-"+id));		
 	}
 	 
 	
